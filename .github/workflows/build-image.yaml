@@ -3,7 +3,13 @@ name: Build images
 on:
   push:
     branches:
-      - 'main'
+      - main
+    tags:
+      - "v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
@@ -11,6 +17,15 @@ env:
 
 jobs:
   build-and-push-image:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+          - arch: arm64
+          - arch: arm64
+            variant: v8
+    env:
+      PLATFORM: linux/${{ matrix.arch }}${{ (matrix.variant != '' && format('/{0}', matrix.variant)) || '' }}
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -35,7 +50,7 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         with:
-          platforms: arm64
+          platforms: ${{ matrix.arch }}
 
       - name: Set up Docker Buildx
         id: buildx
@@ -47,8 +62,10 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          # platforms: linux/amd64,linux/arm64,linux/arm64/v8
-          platforms: linux/arm64/v8
+          file: ./Dockerfile
+          platforms: ${{ env.PLATFORM }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ github.workflow }}:${{ env.PLATFORM }}
+          cache-to: type=gha,scope=${{ github.workflow }}:${{ env.PLATFORM }},mode=max
