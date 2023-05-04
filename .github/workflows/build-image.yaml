@@ -11,7 +11,7 @@ env:
 
 jobs:
   build-and-push-image:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
       packages: write
@@ -34,6 +34,8 @@ jobs:
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
+        with:
+          platforms: arm64
 
       - name: Set up Docker Buildx
         id: buildx
@@ -45,7 +47,8 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          platforms: linux/amd64,linux/arm64,linux/arm64/v8
+          # platforms: linux/amd64,linux/arm64,linux/arm64/v8
+          platforms: linux/arm64/v8
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
