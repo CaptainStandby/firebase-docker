@@ -17,15 +17,6 @@ env:
 
 jobs:
   build-and-push-image:
-    strategy:
-      matrix:
-        include:
-          - arch: amd64
-          - arch: arm64
-          - arch: arm64
-            variant: v8
-    env:
-      PLATFORM: linux/${{ matrix.arch }}${{ (matrix.variant != '' && format('/{0}', matrix.variant)) || '' }}
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -46,11 +37,16 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         with:
-          platforms: ${{ matrix.arch }}
+          platforms: amd64,arm64
 
       - name: Set up Docker Buildx
         id: buildx
@@ -63,9 +59,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: ${{ env.PLATFORM }}
+          platforms: linux/amd64,linux/arm64,linux/arm64/v8
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ github.workflow }}:${{ env.PLATFORM }}
-          cache-to: type=gha,scope=${{ github.workflow }}:${{ env.PLATFORM }},mode=max
